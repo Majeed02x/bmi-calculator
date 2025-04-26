@@ -2,8 +2,12 @@
   "name": "bmi-server",
   "version": "1.0.0",
   "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
     "body-parser": "^1.20.0",
     "express": "^4.18.0"
   }
 }
+
