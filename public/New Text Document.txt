@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BMI Calculator</title>
+  <style>
+    :root {
+      --primary: #4f8cff;
+      --bg: #f7f8fa;
+      --surface: #fff;
+      --accent: #22223b;
+      --danger: #e63946;
+      --radius: 12px;
+      --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+    body {
+      background: var(--bg);
+      color: var(--accent);
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 400px;
+      margin: 48px auto;
+      background: var(--surface);
+      padding: 32px 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    h1 {
+      font-size: 2.2em;
+      margin: 0 0 10px 0;
+      color: var(--primary);
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 1em;
+      margin-bottom: 2px;
+    }
+    input, select {
+      font-size: 1em;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #d3d4dd;
+      outline: none;
+      background: #f8faff;
+      transition: border 0.2s;
+    }
+    input:focus, select:focus {
+      border: 1.5px solid var(--primary);
+    }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 0;
+      font-size: 1.15em;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 16px;
+    }
+    button:hover {
+      background: #3558a4;
+    }
+    .footer-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .link-btn {
+      background: none;
+      color: var(--primary);
+      border: none;
+      font-size: 0.98em;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .theme-toggle {
+      position: absolute;
+      top: 18px;
+      right: 32px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.25em;
+      color: var(--primary);
+    }
+    @media (max-width: 600px) {
+      .container {
+        margin: 0 0;
+        box-shadow: none;
+        border-radius: 0;
+        min-height: 100vh;
+      }
+    }
+    body.dark {
+      --primary: #fad02e;
+      --bg: #232946;
+      --surface: #21222c;
+      --accent: #fafafa;
+      --danger: #e63946;
+    }
+    body.dark input, body.dark select {
+      background: #262838;
+      color: #fff;
+      border: 1px solid #444;
+    }
+    body.dark .container {
+      box-shadow: none;
+    }
+    body.dark .theme-toggle {
+      color: #fad02e;
+    }
+
+    /* Toast notification */
+    #notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: var(--bg);
+      padding: 10px 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+  <div class="container">
+    <h1>BMI Calculator</h1>
+    <form id="bmi-form" method="POST" action="/calculate-bmi">
+      <div class="form-group">
+        <label for="height">Height (cm):</label>
+        <input type="number" step="any" min="1" name="height" id="height" required>
+      </div>
+      <div class="form-group">
+        <label for="weight">Weight (kg):</label>
+        <input type="number" step="any" min="1" name="weight" id="weight" required>
+      </div>
+      <div class="form-group">
+        <label for="unitType">Unit Type:</label>
+        <select name="unitType" id="unitType">
+          <option value="metric">Metric (kg/cm)</option>
+          <option value="imperial">Imperial (lbs/in)</option>
+        </select>
+      </div>
+      <button type="submit">Calculate BMI</button>
+      <div class="footer-actions">
+        <button type="button" class="link-btn" onclick="showFormula()">Display Formula</button>
+        <button type="button" class="link-btn" onclick="downloadResult()">Download Result</button>
+        <button type="button" class="link-btn" onclick="showHelp()">Help</button>
+      </div>
+    </form>
+    <div id="result"></div>
+    <div id="formula-modal" style="display:none;">
+      <p>
+        <b>BMI Formula:</b><br>
+        Metric: <code>BMI = Weight (kg) / (Height (m) × Height (m))</code><br>
+        Imperial: <code>BMI = (Weight (lb) / (Height (in) × Height (in))) × 703</code>
+      </p>
+      <button onclick="hideFormula()">Close</button>
+    </div>
+    <div id="help-modal" style="display:none;">
+      <p>
+        <b>How to use:</b><br>
+        Enter your height in centimeters and weight in kilograms.<br>
+        Choose your unit system.<br>
+        Click "Calculate BMI" to see your result.<br>
+        Use "Display Formula" for the calculation method.<br>
+        Use "Download Result" to save your BMI.<br>
+        Toggle between light and dark mode for comfort!
+      </p>
+      <button onclick="hideHelp()">Close</button>
+    </div>
+  </div>
+
+  <!-- Toast notification element -->
+  <div id="notification"></div>
+
+  <script>
+  // ===== UI helper functions =====
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    document.querySelector('.theme-toggle').textContent =
+      document.body.classList.contains('dark') ? "☀️" : "🌙";
+  }
+
+  function showFormula() {
+    document.getElementById('formula-modal').style.display = 'block';
+  }
+  function hideFormula() {
+    document.getElementById('formula-modal').style.display = 'none';
+  }
+
+  function showHelp() {
+    document.getElementById('help-modal').style.display = 'block';
+  }
+  function hideHelp() {
+    document.getElementById('help-modal').style.display = 'none';
+  }
+
+  function showNotification(msg) {
+    const n = document.getElementById('notification');
+    n.textContent = msg;
+    n.style.opacity = '1';
+    setTimeout(() => { n.style.opacity = '0'; }, 2000);
+  }
+
+  function downloadResult() {
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv.textContent.trim()) {
+      alert('Please calculate your BMI first!');
+      return;
+    }
+    const blob = new Blob([resultDiv.textContent], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'bmi_result.txt';
+    link.click();
+    showNotification('Download complete!');
+  }
+
+  // ===== AJAX form submit (URL-encoded) =====
+  document.getElementById('bmi-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData) {
+      params.append(key, value);
+    }
+    fetch('/calculate-bmi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    })
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById('result').innerHTML = html;
+      showNotification('BMI calculated!');
+    })
+    .catch(() => {
+      document.getElementById('result').innerHTML =
+        '<span style="color:red;">Error occurred.</span>';
+    });
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BMI Calculator</title>
+  <style>
+    :root {
+      --primary: #4f8cff;
+      --bg: #f7f8fa;
+      --surface: #fff;
+      --accent: #22223b;
+      --danger: #e63946;
+      --radius: 12px;
+      --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+    body {
+      background: var(--bg);
+      color: var(--accent);
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0; padding: 0;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 400px; margin: 48px auto;
+      background: var(--surface);
+      padding: 32px 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 2.2em;
+      margin: 0 0 10px;
+      color: var(--primary);
+    }
+    .form-group {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    label {
+      font-size: 1em;
+      margin-bottom: 2px;
+    }
+    input, select {
+      font-size: 1em; padding: 8px 10px;
+      border-radius: 8px; border: 1px solid #d3d4dd;
+      outline: none; background: #f8faff;
+      transition: border 0.2s;
+    }
+    input:focus, select:focus {
+      border: 1.5px solid var(--primary);
+    }
+    button {
+      background: var(--primary); color: #fff; border: none;
+      border-radius: 8px; padding: 12px 0; font-size: 1.15em;
+      cursor: pointer; transition: background 0.2s;
+      margin-top: 16px;
+    }
+    button:hover {
+      background: #3558a4;
+    }
+    .footer-actions {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: 10px;
+    }
+    .link-btn {
+      background: none; color: var(--primary); border: none;
+      font-size: 0.98em; cursor: pointer; padding: 0;
+      text-align: left; text-decoration: underline;
+    }
+    .theme-toggle {
+      position: absolute; top: 18px; right: 32px;
+      background: none; border: none; cursor: pointer;
+      font-size: 1.25em; color: var(--primary);
+    }
+    body.dark {
+      --primary: #fad02e; --bg: #232946;
+      --surface: #21222c; --accent: #fafafa;
+      --danger: #e63946;
+    }
+    body.dark input, body.dark select {
+      background: #262838; color: #fff; border: 1px solid #444;
+    }
+    body.dark .container { box-shadow: none; }
+    body.dark .theme-toggle { color: #fad02e; }
+
+    /* Toast notification */
+    #notification {
+      position: fixed; top: 20px; right: 20px;
+      background: var(--primary); color: var(--bg);
+      padding: 10px 20px; border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      opacity: 0; transition: opacity 0.3s ease;
+      z-index: 1000;
+    }
+
+    /* Modals */
+    .modal {
+      display: none; position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--surface); padding: 1.5em;
+      border-radius: 1em; box-shadow: 0 0 16px rgba(0,0,0,0.4);
+      max-width: 90%; color: var(--accent);
+      z-index: 1001;
+    }
+    .modal h2 { margin-top: 0; }
+    .modal button {
+      margin-top: 1em; background: var(--primary);
+      color: var(--bg); border: none;
+      padding: 0.5em 1em; border-radius: 0.5em;
+      cursor: pointer;
+    }
+    ul { padding-left: 1.2em; }
+
+    /* === BMI Bar & Marker === */
+    .bmi-result {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; margin-top: 16px;
+    }
+    .bmi-value {
+      font-size: 2.5em; background: #e0f7fa;
+      padding: 8px 16px; border-radius: 4px;
+      color: var(--accent);
+    }
+    .bmi-bar-container {
+      width: 100%;
+    }
+    .bmi-labels {
+      display: flex; width: 100%;
+      margin-bottom: 4px; font-size: 0.85em;
+      color: var(--accent);
+    }
+    .bmi-labels span {
+      flex: 1; text-align: center;
+    }
+    .bmi-bar {
+      position: relative; display: flex;
+      width: 100%; height: 12px; border-radius: 6px;
+      overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .bmi-bar span { flex: 1; display: block; }
+    .underweight { background: #fad02e; }
+    .normal     { background: #4cd137; }
+    .overweight { background: #e67e22; }
+    .obesity    { background: #e74c3c; }
+    .bmi-marker {
+      position: absolute; top: -4px; width: 2px; height: 20px;
+      background: var(--accent); transition: left 0.8s ease-out;
+    }
+  </style>
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+  <div class="container">
+    <h1>BMI Calculator</h1>
+    <form id="bmi-form" method="POST" action="/calculate-bmi">
+      <div class="form-group">
+        <label for="height">Height (cm):</label>
+        <input type="number" step="any" min="1" name="height" id="height" required>
+      </div>
+      <div class="form-group">
+        <label for="weight">Weight (kg):</label>
+        <input type="number" step="any" min="1" name="weight" id="weight" required>
+      </div>
+      <div class="form-group">
+        <label for="unitType">Unit Type:</label>
+        <select name="unitType" id="unitType">
+          <option value="metric">Metric (kg/cm)</option>
+          <option value="imperial">Imperial (lbs/in)</option>
+        </select>
+      </div>
+      <button type="submit">Calculate BMI</button>
+      <div class="footer-actions">
+        <button type="button" class="link-btn" onclick="showFormula()">Display Formula</button>
+        <button type="button" class="link-btn" onclick="showMeaning()">What Your BMI Means</button>
+        <button type="button" class="link-btn" onclick="showAccuracy()">Is BMI Accurate?</button>
+        <button type="button" class="link-btn" onclick="downloadPDF()">Download PDF</button>
+        <button type="button" class="link-btn" onclick="showHelp()">Help</button>
+      </div>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <!-- Formula Modal -->
+  <div id="formula-modal" class="modal">
+    <p><b>BMI Formula:</b><br>
+      Metric: BMI = weight (kg) / (height (m) × height (m))<br>
+      Imperial: BMI = (weight (lb) / (height (in) × height (in))) × 703
+    </p>
+    <button onclick="hideFormula()">Close</button>
+  </div>
+
+  <!-- Meaning Modal -->
+  <div id="meaning-modal" class="modal">
+    <h2>What Your BMI Score Means</h2>
+    <p><strong>Underweight</strong><br>
+    Being underweight might mean you’re not getting all the nutrients, vitamins, and minerals your body needs. …</p>
+    <p><strong>Healthy weight</strong><br>
+    Having a BMI score within the healthy weight range is a good sign that you are the right weight for your height. …</p>
+    <p><strong>Overweight</strong><br>
+    If your BMI is in the overweight range you may be more at risk of developing health conditions such as type 2 diabetes, heart disease, gallstones, and certain cancers. …</p>
+    <p><strong>Obesity – Class 1 & 2</strong><br>
+    A BMI of 30–35 is Class 1 obesity, and 35–40 is Class 2. The likelihood of health issues increases if you are in these ranges. …</p>
+    <p><strong>Severely Obese – Class 3</strong><br>
+    A BMI of 40 or above means you’re in the severe (Class 3) obesity range, which can greatly affect your health. …</p>
+    <button onclick="hideMeaning()">Close</button>
+  </div>
+
+  <!-- Accuracy Modal -->
+  <div id="accuracy-modal" class="modal">
+    <h2>Is BMI Accurate?</h2>
+    <p>Your BMI result is a useful starting point for talking with a GP about your weight and general health. …</p>
+    <p>Groups of people where a BMI result is less helpful include:</p>
+    <ul>
+      <li>Muscular people</li>
+      <li>Black and Asian ethnic groups</li>
+      <li>Pregnant women</li>
+      <li>Children</li>
+      <li>People over 60</li>
+    </ul>
+    <button onclick="hideAccuracy()">Close</button>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal">
+    <p><b>How to use:</b><br>
+      • Enter height in cm and weight in kg.<br>
+      • Choose your unit system.<br>
+      • Click “Calculate BMI” to see your result.<br>
+      • Use the info buttons for formula, meaning, or accuracy.<br>
+      • Download your result as a PDF.<br>
+      • Toggle theme with the icon in the top-right.
+    </p>
+    <button onclick="hideHelp()">Close</button>
+  </div>
+
+  <div id="notification"></div>
+
+  <script>
+    // UI helper functions
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      document.querySelector('.theme-toggle').textContent =
+        document.body.classList.contains('dark') ? '☀️' : '🌙';
+    }
+    function showFormula(){ document.getElementById('formula-modal').style.display = 'block'; }
+    function hideFormula(){ document.getElementById('formula-modal').style.display = 'none'; }
+    function showMeaning(){ document.getElementById('meaning-modal').style.display = 'block'; }
+    function hideMeaning(){ document.getElementById('meaning-modal').style.display = 'none'; }
+    function showAccuracy(){ document.getElementById('accuracy-modal').style.display = 'block'; }
+    function hideAccuracy(){ document.getElementById('accuracy-modal').style.display = 'none'; }
+    function showHelp(){ document.getElementById('help-modal').style.display = 'block'; }
+    function hideHelp(){ document.getElementById('help-modal').style.display = 'none'; }
+    function showNotification(msg){
+      const n = document.getElementById('notification');
+      n.textContent = msg; n.style.opacity = '1';
+      setTimeout(()=>n.style.opacity = '0', 2000);
+    }
+
+    // PDF Download
+    async function downloadPDF(){
+      const resDiv = document.getElementById('result');
+      if (!resDiv.textContent.trim()) return alert('Calculate first!');
+      const lines = resDiv.innerText.split('\n').filter(l=>l.trim());
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(18); doc.text('BMI Result', 14, 20);
+      doc.setFontSize(14);
+      let y = 40;
+      lines.forEach(line => {
+        doc.text(line, 14, y);
+        y += 10;
+      });
+      doc.save('bmi_result.pdf');
+      showNotification('Download complete!');
+    }
+
+    // AJAX submit & animated bar
+    document.getElementById('bmi-form').addEventListener('submit', function(e){
+      e.preventDefault();
+      const data = new FormData(this);
+      const params = new URLSearchParams();
+      for (const [k, v] of data) params.append(k, v);
+      fetch('/calculate-bmi', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/x-www-form-urlencoded' },
+        body: params.toString()
+      })
+      .then(r => r.text())
+      .then(html => {
+        const m = html.match(/([\d.]+)/);
+        const bmiValue = m ? parseFloat(m[1]) : 0;
+        const rd = document.getElementById('result');
+        rd.innerHTML = `
+          <div class="bmi-result">
+            <div class="bmi-value">${bmiValue.toFixed(2)}</div>
+            <div class="bmi-bar-container">
+              <div class="bmi-labels">
+                <span>Underweight</span>
+                <span>Normal</span>
+                <span>Overweight</span>
+                <span>Obesity</span>
+              </div>
+              <div class="bmi-bar">
+                <span class="underweight"></span>
+                <span class="normal"></span>
+                <span class="overweight"></span>
+                <span class="obesity"></span>
+                <div class="bmi-marker"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        const marker = rd.querySelector('.bmi-marker');
+        const pct = Math.min(bmiValue,40)/40*100;
+        marker.style.left = pct + '%';
+        showNotification('BMI calculated!');
+      })
+      .catch(()=>{
+        document.getElementById('result').innerHTML =
+          '<span style="color:red;">Error occurred.</span>';
+      });
+    });
+  </script>
+</body>
+</html>
